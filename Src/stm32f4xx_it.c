@@ -38,10 +38,12 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "../../stm32test/Inc/stm32f4xx_it.h"
 
-#include "../../stm32test/Inc/main.h"
+#include "stm324xg_eval.h"
 #include "stm32f4xx_hal.h"
+
+#include "main.h"
+#include "stm32f4xx_it.h"
 
 
 /** @addtogroup STM32F4xx_HAL_Examples
@@ -56,7 +58,6 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -160,6 +161,7 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   HAL_IncTick();
+  HAL_SYSTICK_IRQHandler();
 }
 
 /******************************************************************************/

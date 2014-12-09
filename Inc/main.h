@@ -43,8 +43,9 @@
 #include "fonts.h"
 
 /* Exported types ------------------------------------------------------------*/
-sFONT NesFont16;
-sFONT NesFont8;
+extern sFONT NesFont16;
+extern sFONT NesFont8;
+
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */

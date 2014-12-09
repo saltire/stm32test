@@ -36,32 +36,57 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "../../stm32test/Inc/main.h"
-
-#include <stdio.h>
-
 #include "stm32f4xx_hal.h"
+
 #include "stm324xg_eval_io.h"
 #include "stm324xg_eval_lcd.h"
 
+#include "main.h"
 
-/** @addtogroup STM32F4xx_HAL_Examples
-  * @{
-  */
-
-/** @addtogroup Templates
-  * @{
-  */
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+
+#define REFRESH_RATE 30
+
+#define MARGIN_TOP 50
+#define MARGIN_BOTTOM 10
+#define MARGIN_LEFT 10
+#define MARGIN_RIGHT 10
+
+#define BACK_COLOR LCD_COLOR_BLACK
+#define TEXT_COLOR LCD_COLOR_LIGHTGREEN
+#define BLOCK_COLOR LCD_COLOR_LIGHTRED
+#define BLOCK_SIZE 10
+#define BLOCK_SPEED 2
+
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+
+uint16_t x, y, xsize, ysize;
+uint8_t joyStatus = 0;
+JOYState_TypeDef direction = JOY_NONE;
+
+
 /* Private function prototypes -----------------------------------------------*/
+
 static void SystemClock_Config(void);
 static void Error_Handler(void);
 
+
 /* Private functions ---------------------------------------------------------*/
+
+void drawBlock(uint16_t x, uint16_t y, uint16_t colour)
+{
+  for (uint16_t xx = x; xx < x + BLOCK_SIZE; xx++)
+  {
+    for (uint16_t yy = y; yy < y + BLOCK_SIZE; yy++)
+    {
+      BSP_LCD_DrawPixel(xx % xsize + MARGIN_LEFT, yy % ysize + MARGIN_TOP, colour);
+    }
+  }
+}
 
 /**
   * @brief  Main program
@@ -70,83 +95,110 @@ static void Error_Handler(void);
   */
 int main(void)
 {
-
-  /* STM32F4xx HAL library initialization:
-       - Configure the Flash prefetch, Flash preread and Buffer caches
-       - Systick timer is configured by default as source of time base, but user
-             can eventually implement his proper time base source (a general purpose
-             timer for example or other time source), keeping in mind that Time base
-             duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and
-             handled in milliseconds basis.
-       - Low Level Initialization
-     */
   HAL_Init();
 
   /* Configure the System clock to have a frequency of 168 MHz */
   SystemClock_Config();
 
+  // set the HAL systick rate
+  HAL_SYSTICK_Config(SystemCoreClock / REFRESH_RATE);
 
-  /* Add your application code here
-     */
+
+  // initialize screen
   BSP_LCD_Init();
-  BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
-  BSP_LCD_SetTextColor(LCD_COLOR_LIGHTGREEN);
-  BSP_LCD_Clear(LCD_COLOR_BLACK);
+  BSP_LCD_SetBackColor(BACK_COLOR);
+  BSP_LCD_SetTextColor(TEXT_COLOR);
   BSP_LCD_SetFont(&NesFont8);
 
+  BSP_LCD_Clear(BACK_COLOR);
   BSP_LCD_DisplayStringAt(0, 0, (uint8_t *)"Testing!", CENTER_MODE);
 
-  uint8_t status = BSP_JOY_Init(JOY_MODE_GPIO);
-
-  if (status != IO_OK)
+  // initialize joystick and display message
+  if (BSP_JOY_Init(JOY_MODE_GPIO) != IO_OK)
   {
-     BSP_LCD_DisplayStringAt(0, LINE(2), (uint8_t *)"ERROR", CENTER_MODE);
-     BSP_LCD_DisplayStringAt(0, LINE(3), (uint8_t *)"Joystick cannot be initialized", CENTER_MODE);
+    BSP_LCD_DisplayStringAt(0, LINE(2), (uint8_t *)(joyStatus == IO_ERROR ? "ERROR" : "TIMEOUT"), CENTER_MODE);
+    BSP_LCD_DisplayStringAt(0, LINE(3), (uint8_t *)"Joystick cannot be initialized", CENTER_MODE);
   }
+  else joyStatus = 1;
 
-  JOYState_TypeDef JoyState = JOY_NONE;
-  JOYState_TypeDef DisplayState = JOY_NONE;
+  // initialize block drawing
+  xsize = BSP_LCD_GetXSize() - MARGIN_LEFT - MARGIN_RIGHT;
+  ysize = BSP_LCD_GetYSize() - MARGIN_TOP - MARGIN_BOTTOM;
+  x = (xsize - BLOCK_SIZE) / 2;
+  y = (ysize - BLOCK_SIZE) / 2;
+  drawBlock(x, y, BLOCK_COLOR);
 
-
-  // Draw a dot in the center of the screen
-  uint16_t x = BSP_LCD_GetXSize() / 2;
-  uint16_t y = BSP_LCD_GetYSize() / 2;
-  BSP_LCD_DrawPixel(x, y, LCD_COLOR_LIGHTRED);
-
-
-  /* Infinite loop */
   while (1)
   {
-    if (status == IO_OK)
+    if (joyStatus)
     {
+      uint8_t *dirString = 0;
 
-      JoyState = BSP_JOY_GetState();
-
-      if (JoyState != DisplayState &&
-          (JoyState == JOY_UP || JoyState == JOY_DOWN || JoyState == JOY_LEFT || JoyState == JOY_RIGHT))
+      // get and store joystick state
+      JOYState_TypeDef JoyState = BSP_JOY_GetState();
+      if (JoyState != JOY_NONE && JoyState != direction)
       {
-        DisplayState = JoyState;
+        direction = JoyState;
 
-        BSP_LCD_ClearStringLine(3);
-        switch(JoyState)
+        // display message
+        switch(direction)
         {
         case JOY_UP:
-          BSP_LCD_DisplayStringAt(0, LINE(3), (uint8_t *)"UP", CENTER_MODE);
+          dirString = (uint8_t *)"UP";
           break;
         case JOY_DOWN:
-          BSP_LCD_DisplayStringAt(0, LINE(3), (uint8_t *)"DOWN", CENTER_MODE);
+          dirString = (uint8_t *)"DOWN";
           break;
         case JOY_LEFT:
-          BSP_LCD_DisplayStringAt(0, LINE(3), (uint8_t *)"LEFT", CENTER_MODE);
+          dirString = (uint8_t *)"LEFT";
           break;
         case JOY_RIGHT:
-          BSP_LCD_DisplayStringAt(0, LINE(3), (uint8_t *)"RIGHT", CENTER_MODE);
+          dirString = (uint8_t *)"RIGHT";
+          break;
+        case JOY_SEL:
+          dirString = (uint8_t *)"STOP";
           break;
         default:
           break;
         }
+        BSP_LCD_ClearStringLine(3);
+        BSP_LCD_DisplayStringAt(0, LINE(3), dirString, CENTER_MODE);
       }
     }
+  }
+}
+
+void HAL_SYSTICK_Callback()
+{
+  if (direction != JOY_NONE && direction != JOY_SEL)
+  {
+    // erase block, update direction, redraw block
+    drawBlock(x, y, LCD_COLOR_BLACK);
+    switch(direction)
+    {
+    case JOY_UP:
+      y = (y - BLOCK_SPEED + ysize) % ysize;
+      break;
+    case JOY_DOWN:
+      y = (y + BLOCK_SPEED) % ysize;
+      break;
+    case JOY_LEFT:
+      x = (x - BLOCK_SPEED + xsize) % xsize;
+      break;
+    case JOY_RIGHT:
+      x = (x + BLOCK_SPEED) % xsize;
+      break;
+    default:
+      break;
+    }
+    drawBlock(x, y, BLOCK_COLOR);
+  }
+}
+
+static void Error_Handler(void)
+{
+  while(1)
+  {
   }
 }
 
@@ -209,19 +261,6 @@ static void SystemClock_Config(void)
   {
     /* Initialization Error */
     Error_Handler();
-  }
-}
-
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @param  None
-  * @retval None
-  */
-static void Error_Handler(void)
-{
-  /* User may add here some code to deal with this error */
-  while(1)
-  {
   }
 }
 

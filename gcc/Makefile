@@ -59,14 +59,14 @@ OBJ = \
 	build/stm32f4xx_hal_sram.o \
 	build/stm32f4xx_hal_uart.o \
 	build/stm32f4xx_ll_fsmc.o \
-	build/system_stm32f4xx.o \
 	build/startup_stm32f407xx.o \
 	build/main.o \
 	build/nesfont8.o \
 	build/stm32f4xx_it.o \
+	build/system_stm32f4xx.o \
 
 CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mabi=aapcs-linux -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -fshort-enums -fsingle-precision-constant -Wdouble-promotion
-CFLAGS = $(INC) -D STM32F407xx -Wall -ansi -std=gnu99 $(CFLAGS_CORTEX_M4) $(COPT)
+CFLAGS = $(INC) -DSTM32F407xx -Wall -ansi -std=gnu99 $(CFLAGS_CORTEX_M4) $(COPT)
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -DPENDSV_DEBUG
@@ -75,7 +75,7 @@ else
 COPT += -Os -DNDEBUG
 endif
 
-LDFLAGS = -nostdlib -T STM32F407VG_FLASH.ld -Map=$(@:.elf=.map) --cref
+LDFLAGS = --nostdlib -TSTM32F407VG_FLASH.ld -Map=$(@:.elf=.map) --cref
 LIBS = \
 	-L/usr/arm-none-eabi/lib/armv7e-m/fpu \
 	-L/usr/lib/gcc/arm-none-eabi/4.9.2/armv7e-m/fpu \
